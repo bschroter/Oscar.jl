@@ -384,7 +384,7 @@ julia&gt; f = 2 + x + 3x^3
 2 + x + 3*x^3 + O(x^10)
 
 julia&gt; integral(f)
-2*x + 1//2*x^2 + 3//4*x^4 + O(x^11)</code></pre></div></section><section><div><pre><code class="nohighlight hljs">integral(f::RelSeriesElem{T}) -&gt; RelSeriesElem</code></pre><p>Return the integral of the power series <span>$f$</span>.</p></div></section><section><div><pre><code class="nohighlight hljs">integral(a::Generic.PuiseuxSeriesElem{T}) where T &lt;: RingElement</code></pre><p>Return the integral of the given Puiseux series <span>$a$</span>.</p></div></section></article><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; R, x = PolynomialRing(ZZ, &quot;x&quot;)
+2*x + 1//2*x^2 + 3//4*x^4 + O(x^11)</code></pre></div></section><section><div><pre><code class="nohighlight hljs">integral(a::Generic.PuiseuxSeriesElem{T}) where T &lt;: RingElement</code></pre><p>Return the integral of the given Puiseux series <span>$a$</span>.</p></div></section><section><div><pre><code class="nohighlight hljs">integral(f::RelSeriesElem{T}) -&gt; RelSeriesElem</code></pre><p>Return the integral of the power series <span>$f$</span>.</p></div></section></article><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; R, x = PolynomialRing(ZZ, &quot;x&quot;)
 (Univariate Polynomial Ring in x over Integers, x)
 
 julia&gt; S, y = PolynomialRing(R, &quot;y&quot;)
