@@ -9,13 +9,13 @@ julia&gt; S, x = LaurentSeriesRing(ZZ, 3, &quot;x&quot;)
 (Laurent series ring in x over Integers, x + O(x^4))
 
 julia&gt; parent(x) == S
-true</code></pre></div></section></article><article class="docstring"><header><a class="docstring-binding" id="elem_type" href="#elem_type"><code>elem_type</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">elem_type(parent)
+true</code></pre></div></section></article><article class="docstring"><header><a class="docstring-binding" id="elem_type" href="#elem_type"><code>elem_type</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">elem_type(::Type{T}) where T &lt;: GAPGroup
+elem_type(::T) where T &lt;: GAPGroup</code></pre><p><code>elem_type</code> maps (the type of) a group to the type of its elements. For now, a group of type <code>T</code> has elements of type <code>BasicGAPGroupElem{T}</code>. So we provide it mostly for consistency with other parts of OSCAR. In the future, a more elaborate setup for group element types might also be needed.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/oscar-system/Oscar.jl/blob/6852bb8e9f192a554f7c031b620db9b13473ed5a/src/Groups/types.jl#L279-L288">source</a></section><section><div><pre><code class="nohighlight hljs">elem_type(parent)
 elem_type(parent_type)</code></pre><p>Given a parent object (or its type), return the type of its elements.</p><p><strong>Example</strong></p><pre><code class="language-julia-repl hljs">julia&gt; S, x = PowerSeriesRing(QQ, 2, &quot;x&quot;)
 (Univariate power series ring in x over Rationals, x + O(x^3))
 
 julia&gt; elem_type(S) == typeof(x)
-true</code></pre></div></section><section><div><pre><code class="language-julia hljs">elem_type(::Type{T}) where T &lt;: GAPGroup
-elem_type(::T) where T &lt;: GAPGroup</code></pre><p><code>elem_type</code> maps (the type of) a group to the type of its elements. For now, a group of type <code>T</code> has elements of type <code>BasicGAPGroupElem{T}</code>. So we provide it mostly for consistency with other parts of OSCAR. In the future, a more elaborate setup for group element types might also be needed.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/oscar-system/Oscar.jl/blob/b9fb447d12ff96704828da003282e40c35063be1/src/Groups/types.jl#L279-L288">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="parent_type" href="#parent_type"><code>parent_type</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">parent_type(element)
+true</code></pre></div></section></article><article class="docstring"><header><a class="docstring-binding" id="parent_type" href="#parent_type"><code>parent_type</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">parent_type(element)
 parent_type(element_type)</code></pre><p>Given an element (or its type), return the type of its parent object.</p><p><strong>Example</strong></p><pre><code class="language-julia-repl hljs">julia&gt; R, x = PolynomialRing(ZZ, &quot;x&quot;)
 (Univariate Polynomial Ring in x over Integers, x)
 
