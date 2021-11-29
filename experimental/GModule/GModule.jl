@@ -1,6 +1,7 @@
 module GModuleFromGap
 using Oscar
 using Hecke
+import Hecke: data
 
 import Oscar:gmodule
 
@@ -20,7 +21,18 @@ function GAP.gap_to_julia(::Type{QabElem}, a::GAP.GapObj) #which should be a Cyc
   return z
 end
 
+function GAP.gap_to_julia(::Type{QabElem}, a::Integer)
+  E = abelian_closure(QQ)[1]
+  return E(fmpz(a))
+end
+
 (::QabField)(a::GAP.GapObj) = GAP.gap_to_julia(QabElem, a)
+Hecke.data(a::QabElem) = a.data
+
+function Hecke.number_field(::FlintRationalField, chi::Oscar.GAPGroupClassFunction; cached::Bool = false)
+  return number_field(QQ, map(x->GAP.gap_to_julia(QabElem, x), chi.values), cached = cached)
+end
+
 
 function irreducible_modules(G::Oscar.GAPGroup)
   im = GAP.Globals.IrreducibleRepresentations(G.X)
