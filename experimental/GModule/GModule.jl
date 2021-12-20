@@ -21,7 +21,7 @@ function GAP.gap_to_julia(::Type{QabElem}, a::GAP.GapObj) #which should be a Cyc
   return z
 end
 
-function GAP.gap_to_julia(::Type{QabElem}, a::Integer)
+function GAP.gap_to_julia(::Type{QabElem}, a::GAPInt)
   E = abelian_closure(QQ)[1]
   return E(fmpz(a))
 end
