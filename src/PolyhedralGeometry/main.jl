@@ -74,11 +74,7 @@ export AffineHalfspace,
     linear_inequality_matrix,
     linear_span,
     linear_symmetries,
-    load_cone,
-    load_linearprogram,
-    load_polyhedralfan,
-    load_polyhedron,
-    load_subdivisionofpoints,
+    load,
     maximal_cells,
     maximal_cells_as_incidence_matrix,
     maximal_cones,
@@ -114,11 +110,7 @@ export AffineHalfspace,
     recession_cone,
     regular_triangulations,
     relative_interior_point,
-    save_cone,
-    save_linearprogram,
-    save_polyhedralfan,
-    save_polyhedron,
-    save_subdivisionofpoints,
+    save,
     secondary_cone,
     secondary_polytope,
     simplex,
@@ -160,7 +152,6 @@ include("SubdivisionOfPoints/properties.jl")
 include("SubdivisionOfPoints/functions.jl")
 include("LinearProgram.jl")
 include("Groups.jl")
-include("Serialization.jl")
 include("Visualization.jl")
 include("solving_integrally.jl")
 include("triangulations.jl")
