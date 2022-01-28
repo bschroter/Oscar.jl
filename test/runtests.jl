@@ -50,3 +50,5 @@ include("ToricVarieties/runtests.jl")
 
 include("Schemes/AffineSchemes.jl")
 include("Schemes/SpecOpen.jl")
+
+include("Serialization/runtests.jl")
