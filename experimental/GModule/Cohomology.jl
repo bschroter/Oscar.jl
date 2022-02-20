@@ -804,10 +804,6 @@ function cohomology_group(C::GModule{PermGroup,GrpAbFinGen}, i::Int)
   end
   error("only H^0, H^1 and H^2 are supported")
 end
-#TODO:
-#     versions of fp_group(GrpAbFinGen) and extension
-#     to return PcGroups
-#     (via 1st argument being PcGroup)
 
 """
 For a fin. presented abelian group, return an isomorphic fp-group as well
@@ -819,8 +815,205 @@ function fp_group(M::GrpAbFinGen)
   s = vcat([i*j*inv(i)*inv(j) for i = gens(G) for j = gens(G)], 
                   [reduce(*, [gen(G, i)^R[j,i] for i=1:ngens(M) if !iszero(R[j,i])], init = one(G)) for j=1:nrows(R)])
   F, mF = quo(G, s)
+<<<<<<< HEAD
   return F, MapFromFunc(x->reduce(+, [sign(w)*gen(M, abs(w)) for w = word(x)], init = zero(M)), y->mF(reduce(*, [gen(G, i)^y[i] for i=1:ngens(M)], init = one(G))), F, M)
+=======
+  return F, MapFromFunc(
+    x->reduce(+, [sign(w)*gen(M, abs(w)) for w = word(x)], init = zero(M)),
+    y->mF(reduce(*, [gen(G, i)^y[i] for i=1:ngens(M)], init = one(G))),
+    F, M)
 end
+
+#=
+function get_collector(G::GAP.GapObj)
+  @show G
+  return GAP.evalstr("x -> FamilyObj(x.1)!.rewritingSystem")(G)
+end
+=#
+
+"""
+Compute an isomorphic pc-group (amd the isomorphism). If `refine` is true,
+the pc-generators will all have prime relative order, thus the
+group should be safe to use.
+If `refine` is false, then the relative orders are just used from the hnf
+of the relation matrix.
+"""
+function pc_group(M::GrpAbFinGen; refine::Bool = true)
+  @assert isfinite(M)
+  R = rels(M)
+  h = hnf(R)
+  if nrows(h) > ncols(h)
+    h = view(h, 1:ncols(h), :)
+  end
+  @assert nrows(h) == ncols(h)
+  if refine
+    r = sparse_matrix(ZZ)
+    ng = 1
+    gp = []
+    hm = elem_type(M)[]
+    for i=1:nrows(h)
+      lf = factor(h[i,i]).fac
+      for (p,k) = lf
+        v = divexact(h[i,i], p^k)*M[i]
+        for j=1:k-1
+          push!(r, sparse_row(ZZ, [ng, ng+1], [p, fmpz(-1)]))
+          push!(hm, v)
+          v *= p
+          ng += 1
+        end
+        push!(r, sparse_row(ZZ, [ng], [p]))
+        push!(gp, ng)
+        push!(hm, v)
+        ng += 1
+      end
+    end
+    for i=1:nrows(h)
+      for j=i+1:ncols(h)
+        if !iszero(h[i,j])
+          push!(r.rows[gp[i]], gp[j])
+          push!(r.values(gp[i], h[i,j]))
+        end
+      end
+    end
+    MM = abelian_group(matrix(r))
+    h = hom(MM, M, hm)
+    M = MM
+    mM = h
+  else
+    mM = hom(M, M, gens(M))
+  end
+
+  G = free_group(ngens(M))
+  h = rels(M)
+  @assert !any(x->h[x,x] == 1, 1:ncols(h))
+
+  C = GAP.Globals.SingleCollector(G.X, GAP.julia_to_gap([h[i,i] for i=1:nrows(h)], recursive = true))
+  F = GAP.Globals.FamilyObj(GAP.Globals.Identity(G.X))
+
+  for i=1:ngens(M)-1
+    r = fmpz[]
+    for j=i+1:ngens(M)
+      push!(r, j)
+      push!(r, -h[i, j])
+      GAP.Globals.SetConjugate(C, j, i, gen(G, j).X)
+    end
+    rr = GAP.Globals.ObjByExtRep(F, GAP.julia_to_gap(r, recursive = true))
+    GAP.Globals.SetPower(C, i, rr)
+  end
+
+  B = PcGroup(GAP.Globals.GroupByRws(C))
+  FB = GAP.Globals.FamilyObj(GAP.Globals.Identity(B.X))
+
+  Julia_to_gap = function(a::GrpAbFinGenElem)
+    r = fmpz[]
+    for i=1:ngens(M)
+      if !iszero(a[i])
+        push!(r, i)
+        push!(r, a[i])
+      end
+    end
+    return GAP.Globals.ObjByExtRep(FB, GAP.julia_to_gap(r, recursive = true))
+  end
+
+  gap_to_julia = function(a::GAP.GapObj)
+    e = GAP.Globals.ExtRepOfObj(a)
+    z = zeros(fmpz, ngens(M))
+    for i=1:2:length(e)
+      if !iszero(e[i+1])
+        z[e[i]] = e[i+1]
+      end
+    end
+    return M(z)
+  end
+
+  return B, MapFromFunc(
+    x->image(mM, gap_to_julia(x.X)),
+    y->PcGroupElem(B, Julia_to_gap(preimage(mM, y))),
+    B, codomain(mM))
+end
+
+function fp_group(::Type{PcGroup}, M::GrpAbFinGen; refine::Bool = true)
+  return pc_group(M)
+>>>>>>> a4290e178f (close to working, ,,,)
+end
+
+function (k::Nemo.GaloisField)(a::Vector)
+  @assert length(a) == 1
+  return k(a[1])
+end
+
+function (k::FqNmodFiniteField)(a::Vector)
+  return k(polynomial(GF(Int(characteristic(k))), a))
+end
+
+function pc_group(M::Generic.FreeModule{<:FinFieldElem}; refine::Bool = true)
+  k = base_ring(M)
+  p = characteristic(k)
+
+  G = free_group(degree(k)*dim(M))
+
+  C = GAP.Globals.SingleCollector(G.X, GAP.julia_to_gap([p for i=1:ngens(G)], recursive = true))
+  F = GAP.Globals.FamilyObj(GAP.Globals.Identity(G.X))
+
+  B = PcGroup(GAP.Globals.GroupByRws(C))
+  FB = GAP.Globals.FamilyObj(GAP.Globals.Identity(B.X))
+
+  Julia_to_gap = function(a::Generic.FreeModuleElem{<:Union{gfp_elem, gfp_fmpz_elem}})
+    r = fmpz[]
+    for i=1:ngens(M)
+      if !iszero(a[i])
+        push!(r, i)
+        push!(r, lift(a[i]))
+      end
+    end
+    return GAP.Globals.ObjByExtRep(FB, GAP.julia_to_gap(r, recursive = true))
+  end
+
+  Julia_to_gap = function(a::Generic.FreeModuleElem{<:Union{fq, fq_nmod}})
+    r = fmpz[]
+    for i=1:ngens(M)
+      if !iszero(a[i])
+        for j=0:degree(k)
+          if !iszero(coeff(a[i], j))
+            push!(r, (i-1)*degree(k)+j+1)
+            push!(r, ZZ(coeff(a[i], j)))
+          end
+        end
+      end
+    end
+    return GAP.Globals.ObjByExtRep(FB, GAP.julia_to_gap(r, recursive = true))
+  end
+
+
+  gap_to_julia = function(a::GAP.GapObj)
+    e = GAP.Globals.ExtRepOfObj(a)
+    z = zeros(fmpz, ngens(M)*degree(k))
+    for i=1:2:length(e)
+      if !iszero(e[i+1])
+        z[e[i]] = e[i+1]
+      end
+    end
+    c = elem_type(k)[]
+    for i=1:dim(M)
+      push!(c, k(z[(i-1)*degree(k)+1:i*degree(k)]))
+    end
+    return M(c)
+  end
+
+  for i=1:ngens(M)-1
+    r = fmpz[]
+    for j=i+1:ngens(M)
+      GAP.Globals.SetConjugate(C, j, i, gen(G, j).X)
+    end
+    GAP.Globals.SetPower(C, i, GAP.Globals.Identity(F))
+  end
+
+  return B, MapFromFunc(
+    x->gap_to_julia(x.X),
+    y->PcGroupElem(B, Julia_to_gap(y)),
+    B, M)
+end
+
 
 function underlying_word(g::FPGroupElem)
   return FPGroupElem(free_group(parent(g)), GAP.Globals.UnderlyingElement(g.X))
@@ -1046,8 +1239,11 @@ Oscar.group(C::GModule) = C.G
 
 #= TODO
   for Z, Z/nZ, F_p and F_q moduln -> find Fp-presentation
+  for finite Z, Z/nZ, F_p and F_q moduln -> find pc-presentation
   #done: for GrpAbFinGen          -> find Fp-presentation
+  #done: for GrpAbFinGen          -> find pc-presentation
   #done: for a in H^2 find Fp-presentation
+  #done: for a in H^2 find pc-presentation
   for a in H^2 find (low degree) perm group using the perm group we have?
   Magma's DistinctExtensions
   probably aut(GrpAb), ...
