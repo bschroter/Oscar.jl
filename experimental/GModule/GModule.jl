@@ -160,7 +160,7 @@ function Hecke.modular_proj(C::GModule{T, Generic.FreeModule{nf_elem}}, me::Heck
   return R
 end
 
-function Gap(C::GModule{<:Any, <:Generic.FreeModule{<:FinFieldElem}}, h=Oscar.ring_iso_oscar_gap(base_ring(C)))
+function Gap(C::GModule{<:Any, <:Generic.FreeModule{<:FinFieldElem}}, h=Oscar.iso_oscar_gap(base_ring(C)))
   z = get_attribute(C, :Gap)
   if z !== nothing
     return z
@@ -201,11 +201,10 @@ end
 
 function hom_base(C::T, D::T) where T <: GModule{<:Any, <:Generic.FreeModule{<:FinFieldElem}}
   @assert base_ring(C) == base_ring(D)
-  h = Oscar.ring_iso_oscar_gap(base_ring(C))
+  h = Oscar.iso_oscar_gap(base_ring(C))
   hb = GAP.Globals.MTX.BasisModuleHomomorphisms(Gap(C, h), Gap(D, h))
   n = length(hb)
   b = [matrix([preimage(h, x[i, j]) for i in 1:GAPWrap.NrRows(x), j in 1:GAPWrap.NrCols(x)]) for x in hb]
-#  b = map(x->matrix(map(y->preimage(h, y), Matrix{Any}(x))), hb)
 #  @show [mat(C.ac[i])*b[1] == b[1]*mat(D.ac[i]) for i=1:length(C.ac)]
   return b
 end
@@ -219,7 +218,7 @@ function hom_base(C::_T, D::_T) where _T <: GModule{<:Any, <:Generic.FreeModule{
 
   p = Hecke.p_start
   p = 2^10
-  p = 127
+#  p = 127
   m_in = map(mat, C.ac)
   m_out = map(mat, D.ac)
   local T
@@ -426,6 +425,8 @@ function Oscar.gmodule(::Type{GrpAbFinGen}, C::GModule{T, Generic.FreeModule{gfp
   A = abelian_group([characteristic(base_ring(C)) for i=1:rank(C.M)])
   return Oscar.gmodule(A, Group(C), [hom(A, A, map_entries(lift, mat(x))) for x = C.ac])
 end
+#TODO: cover all finite fields
+#      make the Modules work
 
 #to bypass the vec(collect(M)) which copies twice
 function Base.vec(M::Generic.Mat)
@@ -527,7 +528,7 @@ end
 if isdefined(Hecke, :stub_composition_factors)
   function Hecke.stub_composition_factors(x::Vector{T}) where {T}
     F = base_ring(x[1])
-    h = Oscar.ring_iso_oscar_gap(F)
+    h = Oscar.iso_oscar_gap(F)
     V = _to_gap(h, x)
     Vcf = GAP.Globals.MTX.CompositionFactors(V)
     res = Vector{T}[]
@@ -541,7 +542,7 @@ end
 if isdefined(Hecke, :stub_basis_hom_space)
   function Hecke.stub_basis_hom_space(x::Vector, y::Vector)
     F = base_ring(x[1])
-    h = Oscar.ring_iso_oscar_gap(F)
+    h = Oscar.iso_oscar_gap(F)
     @assert base_ring(x[1]) == base_ring(y[1])
     @assert length(x) == length(y)
     hb = GAP.Globals.MTX.BasisModuleHomomorphisms(_to_gap(h, x), _to_gap(h, y))
@@ -562,7 +563,7 @@ using Oscar
 Base.pairs(M::MatElem) = Base.pairs(IndexCartesian(), M)
 Base.pairs(::IndexCartesian, M::MatElem) = Base.Iterators.Pairs(M, CartesianIndices(axes(M)))
 
-function Hecke.roots(a::fq_nmod, i::Int)
+function Hecke.roots(a::FinFieldElem, i::Int)
   kx, x = PolynomialRing(parent(a), cached = false)
   return roots(x^i-a)
 end
@@ -709,7 +710,7 @@ function extend(C::GModule, m::Map)
 end
 
 
-function brueckner(G::FPGroup)
+function brueckner(G::Oscar.GAPGroup)
   #=
   actually, the initial prime list should be from
   the order of the maximal abelian quotient
@@ -717,9 +718,9 @@ function brueckner(G::FPGroup)
   =#
   F = free_module(QQ, 1)
   h = hom(F, F, [F[1]])
-  Q = free_group(1)
-  Q = quo(Q, [Q[1]])[1]
-  mQ = hom(G, Q, gens(G), [Q[1] for i=1:ngens(G)])
+
+  Q = Oscar.GrpCoh.pc_group(abelian_group([1]))[1]
+  mQ = hom(G, Q, gens(G), [one(Q) for i=1:ngens(G)])
 
   C = gmodule(F, G, [h for g = gens(G)])
   CZ = gmodule(GrpAbFinGen, gmodule(ZZ, C))
@@ -741,15 +742,17 @@ function brueckner(G::FPGroup)
   t = torsion_subgroup(q)[1]
   lp = collect(keys(factor(order(t)).fac))
   allR = Dict{Int, Vector{Any}}()
-  @assert ngens(Q) == 1
+
   allR[0] = [gmodule(F, Q, typeof(h)[])]
   for p = lp
     F = free_module(GF(p), 1)
+    F = abelian_group([p])
     h = hom(F, F, [F[1]])
     allR[p] = [gmodule(F, Q, [h])]
   end
   return allR
 end
+
 Base.getindex(M::AbstractAlgebra.FPModule, i::Int) = i==0 ? zero(M) : gens(M)[i]
 Oscar.gen(M::AbstractAlgebra.FPModule, i::Int) = M[i]
 
@@ -762,6 +765,21 @@ end
 
 function coimage(h::Map{GrpAbFinGen, GrpAbFinGen})
   return quo(domain(h), kernel(h)[1])
+end
+
+function Base.iterate(M::Generic.Submodule{<:FinFieldElem})
+  k = base_ring(M)
+  p = Base.Iterators.ProductIterator(Tuple([k for i=1:dim(M)]))
+  f = iterate(p)
+  return M([f[1][i] for i=1:dim(M)]), (f[2], p)
+end
+
+function Base.iterate(M::Generic.Submodule{<:FinFieldElem}, st::Tuple{<:Tuple, <:Base.Iterators.ProductIterator})
+  n = iterate(st[2], st[1])
+  if n === nothing
+    return n
+  end
+  return M([n[1][i] for i=1:dim(M)]), (n[2], st[2])
 end
 
 function lift(C::GModule, mp::Map)
@@ -824,15 +842,22 @@ function lift(C::GModule, mp::Map)
   k, mk = kernel(s)
   allG = []
   z = get_attribute(C, :H_two)[1]
+  seen = Set(elem_type(codomain(mH2))[])
   for x = k
     epi = pDE[1](mk(x)) #the map
     chn = pDE[2](mk(x)) #the tail data
     #TODO: not all "chn" yield distinct groups - the factoring by the 
     #      co-boundaries is missing
-    #      not all "epi" are epi, ie. sujective. The part of the thm
+    #      not all "epi" are epi, ie. surjective. The part of the thm
     #      is missing...
     # (Thm 15, part b & c)
-    GG, GGinj, GGpro, GMtoGG = Oscar.GrpCoh.extension(z(chn))
+    zz = mH2(chn)
+    if zz in seen
+      continue
+    else
+      push!(seen, zz)
+    end
+    GG, GGinj, GGpro, GMtoGG = Oscar.GrpCoh.extension(PcGroup, z(mH2(chn)))
     #map G[i] -> <mp(G[i]), pro[i](epi)>
     push!(allG, (GG, [hom(G, GG, gens(G), [GMtoGG(mp(G[i]), pro[i](epi)) for i=1:ngens(G)])]))
   end
