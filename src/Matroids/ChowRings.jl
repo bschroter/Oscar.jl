@@ -87,6 +87,19 @@ function relations_extended_ring(ring, proper_flats, vars)
 	return relations
 end
 
+@doc Markdown.doc"""
+An augmented Chow ring of a matroid. As described in the paper
+"A semi-small decomposition of the Chow ring of a matroid" by Tom Braden,
+June Huh, et. al.
+
+# Examples
+The following computes the augmented chow ring of the Fano matroid.
+```jldoctest
+julia> M = fano_matroid();
+
+julia> R = augmented_chow_ring(M);
+```
+"""
 function augmented_chow_ring(M::Matroid)
 	Flats = flats(M)
 	sizeFlats = size(Flats)[1]
@@ -111,46 +124,50 @@ function augmented_chow_ring(M::Matroid)
 	flat_vars = vars[n+1:s]
 
 	#ring, vars = PolynomialRing(ZZ, var_names) $which ring do we want here
-	I = augmented_linear_relations(ring, proper_flats, vars, M)
-	J = augmented_quadratic_relations(ring, proper_flats, vars)
+	I = augmented_linear_relations(ring, proper_flats, element_vars, flat_vars, M)
+	J = augmented_quadratic_relations(ring, proper_flats, element_vars, flat_vars, M)
 	chow_modulus = ideal(ring, vcat(I, J))
 	#chow_ring = ResidueRing(ring, chow_modulus)# is this a better choice?
 	chow_ring, projection = quo(ring, chow_modulus)
 	return chow_ring
 end
 
-function augmented_linear_relations(ring, proper_flats, vars, M)
-	# TODO: Implement
-	alpha = 0
-	relations = Vector()
-	for i in M.groundset
-		poly = ring(0)
-		for index in findall(issubset([i],F) for F in proper_flats)
-			poly+= vars[index]
+function augmented_linear_relations(ring, proper_flats, element_vars, flat_vars, M)
+	n = size(M.groundset)[1]
+
+	ideal_polynomials = Array{MPolyElem_dec{fmpq, fmpq_mpoly}}(undef, n)
+	i = 1
+	for element in groundset(M)
+		ideal_polynomials[i] = element_vars[i]
+		j = 1
+		for proper_flat in proper_flats
+			if !(element in proper_flat)
+				ideal_polynomials[i] -= flat_vars[j]
+			end
+			j += 1
 		end
-		if(i==M.groundset[1])
-			alpha = poly
-		else
-			push!(relations, alpha-poly)
-		end
+		i += 1
 	end
-	return relations
+	ideal_polynomials
 end
 
-function augmented_quadratic_relations(ring, proper_flats, indeterminates)
-	# TODO: Implement
-	relations = Vector()
-	s = size(proper_flats)[1]
-	for i in 1:s
-		F = proper_flats[i]
-		for j in 1:i-1
-			G = proper_flats[j]
-			if( !issubset(F,G) && !issubset(G,F) )
-				push!(relations, indeterminates[i]*indeterminates[j])
+function augmented_quadratic_relations(ring, proper_flats, element_vars, flat_vars, M)
+	incomparable_polynomials = quadratic_relations(ring, proper_flats, flat_vars)
+	xy_polynomials = Vector{MPolyElem_dec{fmpq, fmpq_mpoly}}()
+
+	i = 1
+	for element in groundset(M)
+		j = 1
+		for proper_flat in proper_flats
+			if !(element in proper_flat)
+				push!(xy_polynomials, element_vars[i] * flat_vars[j])
 			end
+		 	j += 1
 		end
+		i += 1
 	end
-	return relations
+
+ 	vcat(incomparable_polynomials, xy_polynomials)
 end
 
 
