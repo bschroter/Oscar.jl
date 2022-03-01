@@ -1,9 +1,10 @@
-export chow_ring, select
+export chow_ring, select, augmented_chow_ring
 
 function chow_ring(M::Matroid, extended=false)
 	Flats = flats(M)
 	sizeFlats = size(Flats)[1]
 	n = size(M.groundset)[1]
+
 	if(!is_loopless(M))
 		throw("Matroid has loops")
 	end
@@ -85,6 +86,73 @@ function relations_extended_ring(ring, proper_flats, vars)
 	end
 	return relations
 end
+
+function augmented_chow_ring(M::Matroid)
+	Flats = flats(M)
+	sizeFlats = size(Flats)[1]
+	n = size(M.groundset)[1]
+
+	if(!is_loopless(M))
+		throw("Matroid has loops")
+	end
+	if(sizeFlats<2)
+		throw("Matroid has too few flats")
+	end
+	proper_flats = Flats[1:sizeFlats-1]
+
+	element_var_names = [string("y_", S) for S in groundset(M)]
+	flat_var_names = [replace(string("x_",S), "["=>"{", "]"=>"}", ", "=>",") for S in proper_flats]
+	flat_var_names[1] = "x_{}" # Override "x_Any{}"
+	var_names = vcat(element_var_names, flat_var_names)
+	s = size(var_names)[1]
+
+	ring, vars = GradedPolynomialRing(QQ, var_names)
+	element_vars = vars[1:n]
+	flat_vars = vars[n+1:s]
+
+	#ring, vars = PolynomialRing(ZZ, var_names) $which ring do we want here
+	I = augmented_linear_relations(ring, proper_flats, vars, M)
+	J = augmented_quadratic_relations(ring, proper_flats, vars)
+	chow_modulus = ideal(ring, vcat(I, J))
+	#chow_ring = ResidueRing(ring, chow_modulus)# is this a better choice?
+	chow_ring, projection = quo(ring, chow_modulus)
+	return chow_ring
+end
+
+function augmented_linear_relations(ring, proper_flats, vars, M)
+	# TODO: Implement
+	alpha = 0
+	relations = Vector()
+	for i in M.groundset
+		poly = ring(0)
+		for index in findall(issubset([i],F) for F in proper_flats)
+			poly+= vars[index]
+		end
+		if(i==M.groundset[1])
+			alpha = poly
+		else
+			push!(relations, alpha-poly)
+		end
+	end
+	return relations
+end
+
+function augmented_quadratic_relations(ring, proper_flats, indeterminates)
+	# TODO: Implement
+	relations = Vector()
+	s = size(proper_flats)[1]
+	for i in 1:s
+		F = proper_flats[i]
+		for j in 1:i-1
+			G = proper_flats[j]
+			if( !issubset(F,G) && !issubset(G,F) )
+				push!(relations, indeterminates[i]*indeterminates[j])
+			end
+		end
+	end
+	return relations
+end
+
 
 function select(include::Union{AbstractVector,Set},exclude::Union{AbstractVector,Set},set::Union{AbstractVector,Set})
 	all = []
